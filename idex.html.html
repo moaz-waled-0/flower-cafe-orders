@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <!-- ضبط العرض للموبايل لمنع التكبير غير المرغوب وضمان التجاوب الكامل -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Flower Café — نظام الطاولات والطلبات</title>
+
+    <!-- استدعاء الخطوط العربية (Alexandria) والإنجليزية الرومانسية (Great Vibes) من Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&family=Great+Vibes&display=swap" rel="stylesheet" />
+
+    <!-- استدعاء مكتبة Tailwind CSS للتصميم المتجاوب والحديث -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* =====================================================================
+           1. متغيرات الهوية البصرية لـ Flower Café (الوردي الناعم، الذهبي، وبني القهوة)
+           ===================================================================== */
+        :root {
+            --bg-pink-soft: #fff6f9;
+            --bg-pink-main: #fde8ee;
+            --bg-pink-deep: #f9d4df;
+            --gold-light: #f3dfc1;
+            --gold-main: #c59b5f;
+            --gold-dark: #9e743b;
+            --coffee-dark: #4e2f1d;
+            --coffee-soft: #7c533b;
+            --rose-accent: #d96b8a;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100dvh;
+            font-family: "Alexandria", sans-serif;
+            background:
+                radial-gradient(circle at 12% 12%, #ffffff 0%, transparent 45%),
+                radial-gradient(circle at 88% 18%, #fad8e2 0%, transparent 45%),
+                linear-gradient(165deg, var(--bg-pink-soft) 0%, var(--bg-pink-main) 55%, var(--bg-pink-deep) 100%);
+            color: var(--coffee-dark);
+            overflow-x: hidden;
+        }
+
+        /* الخط الرومانسي المزخرف لاسم الكافيه */
+        .font-romantic {
+            font-family: "Great Vibes", cursive;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        .gold-text-gradient {
+            background: linear-gradient(135deg, #9e743b 0%, #d4af37 50%, #8c6228 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* تصميم البطاقات الفاخرة بحدود ذهبية ناعمة */
+        .luxury-card {
+            background: rgba(255, 252, 253, 0.96);
+            border: 1.5px solid rgba(197, 155, 95, 0.35);
+            box-shadow: 0 12px 32px rgba(124, 63, 88, 0.10);
+        }
+
+        /* إخفاء شريط التمرير مع الإبقاء على التمرير السلس لأقسام المنيو */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* أنيميشن ظهور العناصر بسلاسة */
+        @keyframes fadeInSlide {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeInSlide 0.35s ease-out forwards;
+        }
+
+        /* نبض خفيف للتنبيهات الجديدة في شاشة الاستاف */
+        @keyframes pulseAlert {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(217, 107, 138, 0.35); }
+            50% { box-shadow: 0 0 0 8px rgba(217, 107, 138, 0); }
+        }
+        .alert-pulse {
+            animation: pulseAlert 2s infinite;
+        }
+    </style>
+</head>
+<body class="pb-16">
+
+    <!-- =====================================================================
+         إشعار عائم أنيق (Toast Notification) بديل عن alert()
+         ===================================================================== -->
+    <div id="toastBanner" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden max-w-[92vw] w-[380px] px-4 py-3 rounded-2xl bg-[#4e2f1d] text-[#fff6f9] text-xs font-bold shadow-2xl border border-[#c59b5f] flex items-center justify-between gap-2 transition-all">
+        <span id="toastMessage">تم الإرسال بنجاح</span>
+        <span class="text-[#f3dfc1] text-base">🌸</span>
+    </div>
+
+    <!-- =====================================================================
+         شريط محاكاة مسح QR الطاولات (للاختبار السريع من 1 إلى 12)
+         ===================================================================== -->
+    <div class="w-full bg-white/80 backdrop-blur-md border-b border-[#c59b5f]/25 px-3 py-2 sticky top-0 z-30">
+        <div class="max-w-[480px] mx-auto flex items-center justify-between gap-2 text-[11px]">
+            <span class="font-bold text-[#9e743b] whitespace-nowrap">📱 محاكاة QR الطاولة:</span>
+            <div class="flex items-center gap-1.5">
+                <select id="qrSimulatorSelect" onchange="simulateTableScan(this.value)"
+                    class="bg-[#fff5f8] border border-[#c59b5f]/50 rounded-lg px-2 py-1 font-bold text-[#4e2f1d] focus:outline-none">
+                    <option value="1">طاولة 1</option>
+                    <option value="2">طاولة 2</option>
+                    <option value="3" selected>طاولة 3</option>
+                    <option value="4">طاولة 4</option>
+                    <option value="5">طاولة 5</option>
+                    <option value="bar">البار (Bar)</option>
+                </select>
+                <button type="button" onclick="simulateTableScan(document.getElementById('qrSimulatorSelect').value)"
+                    class="px-2.5 py-1 rounded-lg bg-[#c59b5f] text-white font-bold active:scale-95 transition-transform whitespace-nowrap">
+                    مسح جديد
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         الهيدر الرئيسي: لوجو Flower Café + رقم الطاولة أو البار + مؤقت الجلسة (10 دقائق)
+         ===================================================================== -->
+    <header class="w-full max-w-[460px] mx-auto px-4 pt-4 pb-2 text-center">
+        <div class="flex items-center justify-between luxury-card rounded-3xl px-4 py-3">
+            <!-- اللوجو واسم الكافيه -->
+            <div class="flex items-center gap-2.5 text-right">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#fff9fb] to-[#f9dce5] border-[1.5px] border-[#c59b5f] flex items-center justify-center shrink-0 shadow-sm">
+                    <!-- أيقونة فنجان القهوة الذهبي ووردة التوليب -->
+                    <svg class="w-10 h-10" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="goldGrad" x1="15" y1="15" x2="105" y2="105" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#F5DFB5" />
+                                <stop offset="50%" stop-color="#C59B5F" />
+                                <stop offset="100%" stop-color="#8C6228" />
+                            </linearGradient>
+                            <linearGradient id="roseGrad" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#FFE4EC" />
+                                <stop offset="100%" stop-color="#F49DB8" />
+                            </linearGradient>
+                        </defs>
+                        <path d="M42 42C36 35 38 25 44 21C48 18 52 21 52 25C52 21 56 18 60 21C66 25 68 35 62 42" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round" />
+                        <path d="M25 49H65L59.5 74C57.8 81.5 51.5 86 45 86C38.5 86 32.2 81.5 30.5 74L25 49Z" fill="url(#roseGrad)" stroke="url(#goldGrad)" stroke-width="2.6" stroke-linejoin="round" />
+                        <path d="M64 53H71C75.5 53 78 56 78 60.5C78 65 75 68 69.5 68H61.5" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round" />
+                        <ellipse cx="45" cy="89" rx="23" ry="4.2" fill="#FCE6ED" stroke="url(#goldGrad)" stroke-width="2" />
+                        <path d="M86 84V48" stroke="#6E9672" stroke-width="2.8" stroke-linecap="round" />
+                        <path d="M86 72C77 71 73 65 77 61C81 63 84 67 86 72Z" fill="#84AE88" />
+                        <path d="M86 66C95 65 99 59 95 55C91 57 88 61 86 66Z" fill="#84AE88" />
+                        <path d="M76 47C76 35 86 27 86 27C86 27 96 35 96 47C96 53 91.5 56 86 56C80.5 56 76 53 76 47Z" fill="url(#roseGrad)" stroke="url(#goldGrad)" stroke-width="2.2" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="font-romantic text-[1.85rem] leading-none gold-text-gradient" dir="ltr">Flower Café</h1>
+                    <p class="text-[10px] text-[#7c533b] font-semibold mt-0.5">أهلاً بكم في عالم الورد والقهوة 🌸</p>
+                </div>
+            </div>
+
+            <!-- شارة رقم الطاولة أو البار + مؤقت الجلسة الآمن -->
+            <div class="text-left shrink-0">
+                <div id="headerLocationBadge" class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-[#d4af37] to-[#b88a44] text-white text-xs font-extrabold shadow-sm">
+                    <span>طاولة</span>
+                    <span id="headerTableNum">3</span>
+                </div>
+                <div class="mt-1 flex items-center justify-end gap-1 text-[10px] font-bold text-[#7c533b]">
+                    <span>⏳</span>
+                    <span id="sessionTimerDisplay" class="font-mono">10:00</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- =====================================================================
+         شاشة قفل الجلسة (تظهر تلقائياً عند انتهاء الـ 10 دقائق لمنع الطلب من المنزل)
+         ===================================================================== -->
+    <section id="expiredLockView" class="hidden w-full max-w-[460px] mx-auto px-4 mt-4 animate-fade-in">
+        <div class="luxury-card rounded-3xl p-7 text-center">
+            <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-3xl">
+                🔒
+            </div>
+            <h2 class="text-lg font-extrabold text-[#4e2f1d] mb-2">انتهت صلاحية جلسة الطاولة</h2>
+            <p class="text-xs text-[#7c533b] leading-relaxed mb-5">
+                حرصاً على راحة ضيوفنا داخل <strong>Flower Café</strong>، تنتهي الجلسة تلقائياً بعد 10 دقائق. من فضلك امسح كود الـ QR الموجود على طاولتك مرة أخرى للمتابعة 🌸
+            </p>
+            <button type="button" onclick="simulateTableScan(currentTable)"
+                class="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#c59b5f] to-[#9e743b] text-white text-sm font-bold shadow-lg active:scale-95 transition-transform">
+                📷 إعادة مسح QR الطاولة الآن
+            </button>
+        </div>
+    </section>
+
+    <!-- =====================================================================
+         1. واجهة الزبون الرئيسية (Customer View)
+         ===================================================================== -->
+    <main id="customerView" class="w-full max-w-[460px] mx-auto px-4 space-y-3.5 animate-fade-in">
+
+        <!-- أزرار الإجراءات السريعة (بدون تعقيد أو خطوات مملة) -->
+        <div class="grid grid-cols-2 gap-2.5">
+            <!-- زر نداء الويتر -->
+            <button type="button" onclick="callWaiter()"
+                class="luxury-card rounded-2xl p-3.5 flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition-transform hover:border-[#c59b5f]">
+                <span class="w-11 h-11 rounded-2xl bg-[#fde8ee] text-2xl flex items-center justify-center shadow-inner">🔔</span>
+                <span class="text-xs font-extrabold text-[#4e2f1d]">اطلب الويتر</span>
+                <span class="text-[10px] text-[#7c533b]">استفسار أو مساعدة</span>
+            </button>
+
+            <!-- زر فتح المنيو للطلب -->
+            <button type="button" onclick="openMenuModal()"
+                class="rounded-2xl p-3.5 flex flex-col items-center justify-center gap-1.5 text-center text-white shadow-lg active:scale-95 transition-transform bg-gradient-to-br from-[#d96b8a] via-[#c75b7a] to-[#a84462]">
+                <span class="w-11 h-11 rounded-2xl bg-white/20 text-2xl flex items-center justify-center backdrop-blur-sm">☕🍰</span>
+                <span class="text-xs font-extrabold">اطلب من المنيو</span>
+                <span class="text-[10px] text-white/90">تصفح واطلب فوراً</span>
+            </button>
+        </div>
+
+        <!-- =================================================================
+             كارت الشيك في الواجهة الرئيسية (Check Card)
+             يعرض كل الأوردرات المجمعة على الطاولة + طلب الشيك + حساب أونلاين
+             ================================================================= -->
+        <section class="luxury-card rounded-3xl p-4">
+            <div class="flex items-center justify-between border-b border-[#f3dfc1] pb-2.5 mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">🧾</span>
+                    <div>
+                        <h2 class="text-sm font-extrabold text-[#4e2f1d]">الشيك المفتوح للطاولة</h2>
+                        <p class="text-[10px] text-[#7c533b]">أي أوردر جديد يُضاف تلقائياً لنفس الشيك</p>
+                    </div>
+                </div>
+                <span id="checkStatusBadge" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#fff0f5] text-[#d96b8a] border border-[#f7c6d4]">
+                    لا توجد طلبات بعد
+                </span>
+            </div>
+
+            <!-- قائمة الأصناف المطلوبة في الشيك الحالي -->
+            <div id="checkItemsList" class="space-y-2 max-h-[210px] overflow-y-auto no-scrollbar mb-3">
+                <div class="py-6 text-center text-xs text-[#7c533b]/80">
+                    سلتك وشيك الطاولة فارغ حالياً 🌸<br />
+                    اضغط على <strong>«اطلب من المنيو»</strong> لبدء الطلب
+                </div>
+            </div>
+
+            <!-- الإجمالي -->
+            <div class="flex items-center justify-between bg-[#fff5f8] rounded-2xl px-3.5 py-2.5 border border-[#f3dfc1] mb-3">
+                <span class="text-xs font-bold text-[#4e2f1d]">إجمالي الشيك الحالي:</span>
+                <span id="checkTotalAmount" class="text-lg font-extrabold text-[#d96b8a]">0 ج.م</span>
+            </div>
+
+            <!-- زرا الدفع وطلب الشيك -->
+            <div class="grid grid-cols-2 gap-2.5">
+                <button type="button" onclick="requestPaperCheck()"
+                    class="py-3 px-3 rounded-2xl bg-[#4e2f1d] text-[#fff6f9] text-xs font-bold flex items-center justify-center gap-1.5 shadow active:scale-95 transition-transform">
+                    <span>طلب الشيك</span>
+                    <span>🧾</span>
+                </button>
+
+                <button type="button" onclick="toggleInstaPayVodafoneCard()"
+                    class="py-3 px-3 rounded-2xl bg-gradient-to-r from-[#d4af37] to-[#b88a44] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow active:scale-95 transition-transform">
+                    <span>InstaPay / فودافون كاش</span>
+                    <span>📱</span>
+                </button>
+            </div>
+
+            <!-- بطاقة التحويل عبر InstaPay / فودافون كاش + نسخ الرقم بنقرة واحدة -->
+            <div id="instaPayVodafoneBox" class="hidden mt-3 p-3.5 rounded-2xl bg-gradient-to-br from-[#fffaf0] to-[#fff0f5] border-[1.5px] border-[#c59b5f] animate-fade-in">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-extrabold text-[#4e2f1d]">InstaPay / فودافون كاش</span>
+                    <span id="onlinePayAmountBadge" class="text-xs font-extrabold text-[#d96b8a]">0 ج.م</span>
+                </div>
+
+                <!-- مربع رقم التحويل + زر النسخ -->
+                <div class="flex items-center justify-between gap-2 bg-white rounded-xl p-2.5 border border-[#c59b5f]/40 mb-2.5">
+                    <div class="text-right">
+                        <div class="text-[10px] text-[#7c533b]">رقم InstaPay / فودافون كاش للكافيه:</div>
+                        <div id="instapayNumberDisplay" class="font-mono text-sm font-extrabold text-[#4e2f1d] tracking-wider select-all">
+                            01000000000
+                        </div>
+                    </div>
+                    <button type="button" id="copyNumberBtn" onclick="copyPaymentNumber()"
+                        class="px-3 py-2 rounded-xl bg-[#fde8ee] hover:bg-[#fad2de] text-[#4e2f1d] text-xs font-bold flex items-center gap-1 shrink-0 active:scale-95 transition-all">
+                        <span>نسخ الرقم</span>
+                        <span>📋</span>
+                    </button>
+                </div>
+
+                <button type="button" onclick="confirmInstaPayVodafoneTransfer()"
+                    class="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm active:scale-95 transition-transform">
+                    تم التحويل — إبلاغ الكاشير ✅
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- =====================================================================
+         2. نافذة المنيو التفاعلية والسلة (Menu & Cart Modal)
+         ===================================================================== -->
+    <div id="menuModal" class="fixed inset-0 z-40 hidden bg-black/45 backdrop-blur-xs flex items-end sm:items-center justify-center">
+        <div class="w-full max-w-[480px] h-[88dvh] sm:h-[84dvh] bg-[#fff8fa] rounded-t-3xl sm:rounded-3xl border-t-2 sm:border-2 border-[#c59b5f] flex flex-col overflow-hidden shadow-2xl animate-fade-in">
+            
+            <!-- رأس نافذة المنيو -->
+            <div class="px-4 py-3 bg-white border-b border-[#f3dfc1] flex items-center justify-between shrink-0">
+                <div>
+                    <h3 class="text-sm font-extrabold text-[#4e2f1d]">منيو <span class="font-romantic text-xl gold-text-gradient" dir="ltr">Flower Café</span></h3>
+                    <p class="text-[10px] text-[#7c533b]">اختاروا مشروباتكم وحلوياتكم المفضلة</p>
+                </div>
+                <button type="button" onclick="closeMenuModal()"
+                    class="w-8 h-8 rounded-full bg-[#fde8ee] text-[#4e2f1d] font-bold flex items-center justify-center active:scale-90">
+                    ✕
+                </button>
+            </div>
+
+            <!-- شريط التنقل بين الأقسام الأربعة للمنيو -->
+            <div id="categoryTabs" class="px-3 py-2.5 bg-[#fff5f8] border-b border-[#f3dfc1] flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+                <!-- يتم توليد أزرار الأقسام تلقائياً عبر JS -->
+            </div>
+
+            <!-- قائمة أصناف القسم المختار -->
+            <div id="menuItemsContainer" class="flex-1 overflow-y-auto p-3.5 space-y-2.5">
+                <!-- يتم توليد الأصناف تلقائياً عبر JS -->
+            </div>
+
+            <!-- شريط السلة السفلي وتأكيد الأوردر -->
+            <div class="p-3.5 bg-white border-t border-[#c59b5f]/40 shrink-0 shadow-inner">
+                <div class="flex items-center justify-between mb-2 text-xs">
+                    <span class="font-bold text-[#7c533b]">
+                        الأصناف في السلة: <strong id="cartCountBadge" class="text-[#4e2f1d]">0</strong>
+                    </span>
+                    <span class="font-bold text-[#7c533b]">
+                        إجمالي السلة: <strong id="cartTotalBadge" class="text-sm text-[#d96b8a]">0 ج.م</strong>
+                    </span>
+                </div>
+                <button type="button" id="submitOrderBtn" onclick="submitCartOrder()"
+                    class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#d96b8a] to-[#b54868] text-white text-sm font-extrabold shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-50">
+                    <span>تأكيد الأوردر وإرساله</span>
+                    <span>✨</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         3. شاشة الاستاف والكاشير الحية (Staff & Cashier Live Dashboard)
+         ===================================================================== -->
+    <section id="staffView" class="hidden w-full max-w-[540px] mx-auto px-4 mt-2 space-y-4 animate-fade-in">
+        <!-- شريط علوي لشاشة الاستاف -->
+        <div class="luxury-card rounded-3xl p-4 flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    <h2 class="text-sm font-extrabold text-[#4e2f1d]">شاشة الاستاف والكاشير الحية</h2>
+                </div>
+                <p id="syncModeIndicator" class="text-[10px] text-[#7c533b] mt-0.5">متصل بالمزامنة الفورية مع تنبيه صوتي 🔔</p>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button type="button" onclick="playDingSound()" title="اختبار صوت التنبيه"
+                    class="px-2.5 py-1.5 rounded-xl bg-[#fde8ee] text-[#4e2f1d] text-xs font-bold active:scale-95">
+                    🔊 صوت
+                </button>
+                <button type="button" onclick="exitStaffView()"
+                    class="px-3 py-1.5 rounded-xl bg-[#4e2f1d] text-white text-xs font-bold active:scale-95">
+                    خروج
+                </button>
+            </div>
+        </div>
+
+        <!-- قسم التنبيهات الواردة (أوردرات جديدة، نداء ويتر، طلب شيك، دفع أونلاين) -->
+        <div class="luxury-card rounded-3xl p-4">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs font-extrabold text-[#4e2f1d] flex items-center gap-1.5">
+                    <span>🔔 التنبيهات والأوردرات الواردة</span>
+                    <span id="activeAlertsCount" class="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px]">0</span>
+                </h3>
+                <span class="text-[10px] text-[#7c533b]">تحديث تلقائي</span>
+            </div>
+            <div id="staffAlertsList" class="space-y-2.5">
+                <div class="py-5 text-center text-xs text-[#7c533b]/80">لا توجد تنبيهات نشطة حالياً 🌸</div>
+            </div>
+        </div>
+
+        <!-- قسم الطاولات المفتوحة والشيكات الجارية -->
+        <div class="luxury-card rounded-3xl p-4">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs font-extrabold text-[#4e2f1d]">🧾 الطاولات المفتوحة والشيكات</h3>
+                <span id="openTablesCount" class="text-[10px] font-bold text-[#9e743b]">0 طاولة مفتوحة</span>
+            </div>
+            <div id="staffOpenTablesList" class="space-y-3">
+                <div class="py-5 text-center text-xs text-[#7c533b]/80">جميع الطاولات مغلقة ومتاحة حالياً ✨</div>
+            </div>
+        </div>
+
+        <!-- قسم سجل أوردرات اليوم المحفوظة بوقت تأكيد الشيك -->
+        <div class="luxury-card rounded-3xl p-4">
+            <div class="flex items-center justify-between gap-2 mb-3">
+                <div>
+                    <h3 class="text-xs font-extrabold text-[#4e2f1d]">📋 سجل أوردرات اليوم</h3>
+                    <p id="dailySummaryText" class="text-[10px] text-[#7c533b] mt-0.5">إجمالي اليوم: 0 ج.م • 0 شيك مؤكد</p>
+                </div>
+                <button type="button" id="clearDailyLogBtn" onclick="clearTodayConfirmedOrders()"
+                    class="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[10px] font-bold active:scale-95 transition-colors">
+                    تصفير سجل اليوم
+                </button>
+            </div>
+            <div id="todayConfirmedOrdersList" class="space-y-2.5 max-h-[300px] overflow-y-auto no-scrollbar">
+                <div class="py-5 text-center text-xs text-[#7c533b]/80">لم يتم تأكيد شيكات اليوم بعد 🌸</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- =====================================================================
+         نافذة الرقم السري لدخول شاشة الاستاف (PIN Modal)
+         ===================================================================== -->
+    <div id="staffPinModal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="w-full max-w-[340px] luxury-card rounded-3xl p-5 text-center animate-fade-in">
+            <div class="w-12 h-12 mx-auto mb-2 rounded-full bg-[#fde8ee] text-xl flex items-center justify-center">🔐</div>
+            <h3 class="text-sm font-extrabold text-[#4e2f1d] mb-1">دخول الاستاف والكاشير</h3>
+            <p class="text-[11px] text-[#7c533b] mb-3">أدخل الرقم السري للمتابعة (الافتراضي: 1234)</p>
+            <input type="password" id="staffPinInput" inputmode="numeric" maxlength="6" placeholder="••••"
+                class="w-full text-center tracking-[0.5em] text-lg font-extrabold py-2.5 px-3 rounded-xl border border-[#c59b5f] bg-white mb-2 focus:outline-none" />
+            <p id="pinErrorMsg" class="hidden text-[11px] text-rose-600 font-bold mb-2">الرقم السري غير صحيح ❌</p>
+            <div class="grid grid-cols-2 gap-2 mt-2">
+                <button type="button" onclick="closeStaffPinModal()"
+                    class="py-2.5 rounded-xl bg-gray-100 text-[#4e2f1d] text-xs font-bold">إلغاء</button>
+                <button type="button" onclick="verifyStaffPin()"
+                    class="py-2.5 rounded-xl bg-[#4e2f1d] text-white text-xs font-bold">دخول</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         التذييل (Footer) مع زر فتح شاشة الاستاف والكاشير
+         ===================================================================== -->
+    <footer class="w-full max-w-[460px] mx-auto px-4 mt-6 text-center text-[11px] text-[#7c533b]">
+        <p>صُنع بكل حب لـ <span class="font-romantic text-lg gold-text-gradient align-middle" dir="ltr">Flower Café</span> 🌸</p>
+        <button type="button" onclick="openStaffPinModal()"
+            class="mt-1.5 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/75 border border-[#c59b5f]/40 text-[#9e743b] font-bold hover:bg-white transition-colors">
+            <span>👩‍💼 شاشة الاستاف والكاشير</span>
+        </button>
+    </footer>
+
+    <!-- =====================================================================
+         المنطق البرمجي الكامل (JavaScript + Firebase/Local Sync + Web Audio)
+         ===================================================================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        /* =====================================================================
+           1. إعدادات الكافيه القابلة للتعديل بسهولة (CAFE_CONFIG)
+           ===================================================================== */
+        const CAFE_CONFIG = {
+            // رقم InstaPay / فودافون كاش الخاص بالكافيه والذي يظهر للزبون:
+            instapayNumber: "01007215194",
+
+            // الرقم السري لفتح شاشة الاستاف والكاشير:
+            staffPin: "0011",
+
+            // مدة صلاحية جلسة المسح بالمللي ثانية (10 دقائق = 10 * 60 * 1000):
+            sessionDurationMs: 10 * 60 * 1000,
+
+            // مدة التهدئة (Cooldown) بين نداءات الويتر المتكررة بالمللي ثانية (دقيقتان = 120,000 مللي ثانية):
+            waiterCooldownMs: 2 * 60 * 1000
+        };
+
+        /* =====================================================================
+           2. قائمة المنيو الكاملة المستوحاة من منيو الحائط الفعلي لـ Flower Café
+           ===================================================================== */
+        const MENU_DATA = [
+            {
+                id: "cold",
+                title: "المشروبات الباردة 🧊",
+                items: [
+                    { id: "c1", name: "آيس لاتيه", price: 75 },
+                    { id: "c2", name: "آيس سبانش لاتيه", price: 85 },
+                    { id: "c3", name: "سموذي فراولة", price: 70 },
+                    { id: "c4", name: "سموذي مانجو", price: 75 },
+                    { id: "c5", name: "موهيتو كلاسيك", price: 65 },
+                    { id: "c6", name: "موهيتو بلوبيري", price: 75 },
+                    { id: "c7", name: "فرابتشينو كراميل", price: 85 },
+                    { id: "c8", name: "Monster Energy", price: 85 },
+                    { id: "c9", name: "Twist", price: 40 },
+                    { id: "c10", name: "Pepi Cola", price: 40 }
+                ]
+            },
+            {
+                id: "hot",
+                title: "المشروبات الساخنة ☕",
+                items: [
+                    { id: "h1", name: "قهوة تركي", price: 35 },
+                    { id: "h2", name: "قهوة نوتيلا", price: 45 },
+                    { id: "h3", name: "إسبريسو دبل", price: 45 },
+                    { id: "h4", name: "كابتشينو", price: 65 },
+                    { id: "h5", name: "هوت سبانش لاتيه", price: 75 },
+                    { id: "h6", name: "فلات وايت", price: 65 },
+                    { id: "h7", name: "هوت شوكليت", price: 70 },
+                    { id: "h8", name: "سحلب بالمكسرات", price: 60 },
+                    { id: "h9", name: "شاي كركديه", price: 35 }
+                ]
+            },
+            {
+                id: "milkshake",
+                title: "ميلك تشيك 🥤",
+                items: [
+                    { id: "m1", name: "ميلك تشيك فانيلا", price: 75 },
+                    { id: "m2", name: "ميلك تشيك مانجو", price: 80 },
+                    { id: "m3", name: "ميلك تشيك فراولة", price: 80 },
+                    { id: "m4", name: "ميلك تشيك لوتس", price: 95 },
+                    { id: "m5", name: "ميلك تشيك نوتيلا", price: 95 },
+                    { id: "m6", name: "ميلك تشيك بستاشيو", price: 105 },
+                    { id: "m7", name: "ميلك تشيك أوريو", price: 90 },
+                    { id: "m8", name: "ميلك تشيك سنيكرز", price: 95 }
+                ]
+            },
+            {
+                id: "dessert",
+                title: "ديزرت 🍰",
+                items: [
+                    { id: "d1", name: "مولتن كيك شوكولاتة", price: 85 },
+                    { id: "d2", name: "مولتن كيك نوتيلا", price: 95 },
+                    { id: "d3", name: "مولتن كيك بستاشيو", price: 110 },
+                    { id: "d4", name: "تشيز كيك سان سيباستيان نوتيلا", price: 100 },
+                    { id: "d5", name: "تشيز كيك سان سيباستيان لوتس", price: 100 },
+                    { id: "d6", name: "تشيز كيك سان سيباستيان بستاشيو", price: 115 },
+                    { id: "d7", name: "وافل نوتيلا", price: 80 },
+                    { id: "d8", name: "وافل لوتس", price: 85 },
+                    { id: "d9", name: "دوناتس نوتيلا", price: 65 },
+                    { id: "d10", name: "كرواسون بستاشيو", price: 75 }
+                ]
+            }
+        ];
+
+        /* =====================================================================
+           3. متغيرات الحالة (State) ومفاتيح الجلسة
+           ===================================================================== */
+        const SESSION_KEYS = {
+            tableNum: "flower_cafe_active_table",
+            scanTimestamp: "flower_cafe_scan_ts"
+        };
+
+        const LOCAL_DB_KEYS = {
+            tables: "flower_cafe_db_tables_v1",
+            alerts: "flower_cafe_db_alerts_v1",
+            orderSeq: "flower_cafe_order_seq_v1",
+            dailyOrders: "flower_cafe_daily_confirmed_orders_v1"
+        };
+
+        const COOLDOWN_STORAGE_PREFIX = "flower_cafe_waiter_cooldown_ts_table_";
+
+        let currentTable = "3";
+        let activeCategoryId = MENU_DATA[0].id;
+        let cart = {}; // { itemId: quantity }
+        let sessionInterval = null;
+        let isStaffMode = false;
+
+        // بيانات حية متزامنة
+        let liveTablesMap = {}; // { "3": { table: "3", items: [...], orders: [...], status: "open" } }
+        let liveAlertsList = []; // [ { id, table, type, title, details, timestamp, resolved } ]
+        let todayConfirmedOrders = []; // [ { id, table, total, itemsSummary, paymentMethod, confirmedAt, confirmedTimeStr } ]
+        let knownAlertIds = new Set();
+        let initialAlertsLoaded = false;
+        let clearDailyConfirmPending = false;
+        let clearDailyConfirmTimeout = null;
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let useFirestore = false;
+        const appId = typeof __app_id !== "undefined" ? __app_id : "flower-cafe-default";
+        const broadcastChannel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("flower_cafe_sync") : null;
+
+        /* =====================================================================
+           4. تهيئة التطبيق عند التحميل
+           ===================================================================== */
+        window.addEventListener("DOMContentLoaded", async () => {
+            document.getElementById("instapayNumberDisplay").textContent = CAFE_CONFIG.instapayNumber;
+
+            // 1) معالجة رابط QR الطاولة وحماية الجلسة (10 دقائق)
+            initTableSessionFromUrl();
+
+            // 2) تجهيز المنيو والأقسام
+            renderCategoryTabs();
+            renderMenuItems();
+
+            // 3) تهيئة المزامنة الحية (Firebase Firestore أو التخزين المحلي المتزامن)
+            await initRealtimeSync();
+
+            // 4) بدء عداد صلاحية الجلسة (10 دقائق)
+            startSessionCountdown();
+        });
+
+        /* =====================================================================
+           5. أمان الجلسة (10 دقائق) وإخفاء بارامتر ?table= من الرابط
+           ===================================================================== */
+        function isValidLocationId(locId) {
+            const normalized = String(locId || "").trim().toLowerCase();
+            return ["1", "2", "3", "4", "5", "bar"].includes(normalized);
+        }
+
+        function formatLocationLabel(locId) {
+            return String(locId).toLowerCase() === "bar" ? "البار" : `طاولة ${locId}`;
+        }
+
+        function initTableSessionFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tableFromUrl = urlParams.get("table");
+
+            if (tableFromUrl && isValidLocationId(tableFromUrl)) {
+                // مسح جديد عبر QR: حفظ رقم الطاولة أو البار ووقت المسح ومسح البارامتر من شريط العنوان
+                currentTable = String(tableFromUrl).toLowerCase();
+                sessionStorage.setItem(SESSION_KEYS.tableNum, currentTable);
+                sessionStorage.setItem(SESSION_KEYS.scanTimestamp, String(Date.now()));
+
+                // إزالة ?table= من الرابط لمنع نسخه أو إرساله للمنزل
+                const cleanUrl = window.location.pathname + window.location.hash;
+                window.history.replaceState({}, document.title, cleanUrl);
+            } else {
+                // استرجاع الجلسة الحالية إن وجدت، أو تهيئة طاولة افتراضية للمعاينة
+                const savedTable = sessionStorage.getItem(SESSION_KEYS.tableNum);
+                const savedTs = sessionStorage.getItem(SESSION_KEYS.scanTimestamp);
+
+                if (savedTable && isValidLocationId(savedTable) && savedTs) {
+                    currentTable = String(savedTable).toLowerCase();
+                } else {
+                    currentTable = "3";
+                    sessionStorage.setItem(SESSION_KEYS.tableNum, currentTable);
+                    sessionStorage.setItem(SESSION_KEYS.scanTimestamp, String(Date.now()));
+                }
+            }
+
+            updateTableHeaderUI();
+        }
+
+        window.simulateTableScan = function (tableNum) {
+            const normalized = String(tableNum).toLowerCase();
+            currentTable = isValidLocationId(normalized) ? normalized : "3";
+            sessionStorage.setItem(SESSION_KEYS.tableNum, currentTable);
+            sessionStorage.setItem(SESSION_KEYS.scanTimestamp, String(Date.now()));
+            cart = {};
+            updateCartSummaryUI();
+            updateTableHeaderUI();
+
+            // إخفاء شاشة القفل وإظهار واجهة الزبون
+            document.getElementById("expiredLockView").classList.add("hidden");
+            if (!isStaffMode) {
+                document.getElementById("customerView").classList.remove("hidden");
+            }
+
+            renderCustomerCheckCard();
+            showToast(`تم مسح QR ${formatLocationLabel(currentTable)} بنجاح 🌸`);
+        };
+
+        function updateTableHeaderUI() {
+            const badgeEl = document.getElementById("headerLocationBadge");
+            if (badgeEl) {
+                badgeEl.innerHTML = currentTable === "bar"
+                    ? `<span>🍸</span><span id="headerTableNum">البار</span>`
+                    : `<span>طاولة</span><span id="headerTableNum">${currentTable}</span>`;
+            } else {
+                const numEl = document.getElementById("headerTableNum");
+                if (numEl) numEl.textContent = currentTable === "bar" ? "البار" : currentTable;
+            }
+
+            const simSelect = document.getElementById("qrSimulatorSelect");
+            if (simSelect) simSelect.value = currentTable;
+        }
+
+        function startSessionCountdown() {
+            if (sessionInterval) clearInterval(sessionInterval);
+
+            function tick() {
+                const scanTs = Number(sessionStorage.getItem(SESSION_KEYS.scanTimestamp) || String(Date.now()));
+                const elapsed = Date.now() - scanTs;
+                const remaining = Math.max(0, CAFE_CONFIG.sessionDurationMs - elapsed);
+
+                const mins = Math.floor(remaining / 60000);
+                const secs = Math.floor((remaining % 60000) / 1000);
+                document.getElementById("sessionTimerDisplay").textContent =
+                    `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+
+                if (remaining === 0 && !isStaffMode) {
+                    // انتهت الـ 10 دقائق: قفل الواجهة وطلب إعادة مسح الـ QR
+                    closeMenuModal();
+                    document.getElementById("customerView").classList.add("hidden");
+                    document.getElementById("expiredLockView").classList.remove("hidden");
+                }
+            }
+
+            tick();
+            sessionInterval = setInterval(tick, 1000);
+        }
+
+        function isSessionValid() {
+            const scanTs = Number(sessionStorage.getItem(SESSION_KEYS.scanTimestamp) || "0");
+            return Date.now() - scanTs < CAFE_CONFIG.sessionDurationMs;
+        }
+
+        /* =====================================================================
+           6. نظام المزامنة الحية (Firebase Firestore مع Fallback محلي تلقائي)
+           ===================================================================== */
+        async function initRealtimeSync() {
+            try {
+                if (typeof __firebase_config !== "undefined" && __firebase_config) {
+                    const firebaseConfig = JSON.parse(__firebase_config);
+                    const app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+
+                    if (typeof __initial_auth_token !== "undefined" && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                    currentUser = auth.currentUser;
+                    if (currentUser) {
+                        useFirestore = true;
+                        subscribeFirestoreData();
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn("تشغيل وضع المزامنة المحلية الفورية:", err);
+            }
+
+            // الوضع المحلي المتزامن بين التابات (LocalStorage + BroadcastChannel)
+            useFirestore = false;
+            loadLocalStateAndRender();
+
+            window.addEventListener("storage", (e) => {
+                if (e.key === LOCAL_DB_KEYS.tables || e.key === LOCAL_DB_KEYS.alerts) {
+                    loadLocalStateAndRender();
+                }
+            });
+
+            if (broadcastChannel) {
+                broadcastChannel.onmessage = () => {
+                    loadLocalStateAndRender();
+                };
+            }
+        }
+
+        function subscribeFirestoreData() {
+            if (!useFirestore || !currentUser) return;
+
+            // الاستماع لتحديثات الطاولات المفتوحة
+            const tablesCol = collection(db, "artifacts", appId, "public", "data", "cafe_tables");
+            onSnapshot(tablesCol, (snapshot) => {
+                const updatedMap = {};
+                snapshot.forEach((docSnap) => {
+                    updatedMap[docSnap.id] = docSnap.data();
+                });
+                liveTablesMap = updatedMap;
+                renderCustomerCheckCard();
+                renderStaffDashboard();
+            }, (error) => {
+                console.error("Firestore tables error:", error);
+            });
+
+            // الاستماع للتنبيهات الواردة للاستاف والكاشير
+            const alertsCol = collection(db, "artifacts", appId, "public", "data", "cafe_alerts");
+            onSnapshot(alertsCol, (snapshot) => {
+                const arr = [];
+                snapshot.forEach((docSnap) => {
+                    arr.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                arr.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                handleIncomingAlertsUpdate(arr);
+            }, (error) => {
+                console.error("Firestore alerts error:", error);
+            });
+
+            // الاستماع لسجل أوردرات اليوم المؤكدة
+            const dailyCol = collection(db, "artifacts", appId, "public", "data", "cafe_daily_orders");
+            onSnapshot(dailyCol, (snapshot) => {
+                const dailyArr = [];
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if (!data.cleared) {
+                        dailyArr.push({ id: docSnap.id, ...data });
+                    }
+                });
+                dailyArr.sort((a, b) => (b.confirmedAt || 0) - (a.confirmedAt || 0));
+                todayConfirmedOrders = dailyArr;
+                renderTodayConfirmedOrders();
+            }, (error) => {
+                console.error("Firestore daily orders error:", error);
+            });
+        }
+
+        function loadLocalStateAndRender() {
+            try {
+                liveTablesMap = JSON.parse(localStorage.getItem(LOCAL_DB_KEYS.tables) || "{}");
+            } catch {
+                liveTablesMap = {};
+            }
+
+            try {
+                const dailyArr = JSON.parse(localStorage.getItem(LOCAL_DB_KEYS.dailyOrders) || "[]");
+                dailyArr.sort((a, b) => (b.confirmedAt || 0) - (a.confirmedAt || 0));
+                todayConfirmedOrders = dailyArr;
+            } catch {
+                todayConfirmedOrders = [];
+            }
+
+            try {
+                const arr = JSON.parse(localStorage.getItem(LOCAL_DB_KEYS.alerts) || "[]");
+                arr.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                handleIncomingAlertsUpdate(arr);
+            } catch {
+                liveAlertsList = [];
+            }
+
+            renderCustomerCheckCard();
+            renderStaffDashboard();
+            renderTodayConfirmedOrders();
+        }
+
+        function handleIncomingAlertsUpdate(newAlerts) {
+            const activeNew = newAlerts.filter((a) => !a.resolved);
+
+            if (initialAlertsLoaded) {
+                const hasBrandNewAlert = activeNew.some((a) => !knownAlertIds.has(a.id));
+                if (hasBrandNewAlert && isStaffMode) {
+                    playDingSound();
+                }
+            }
+
+            knownAlertIds = new Set(activeNew.map((a) => a.id));
+            initialAlertsLoaded = true;
+            liveAlertsList = newAlerts;
+            renderStaffDashboard();
+        }
+
+        async function saveTableDocument(tableId, tableData) {
+            liveTablesMap[tableId] = tableData;
+
+            if (useFirestore && currentUser) {
+                const tableRef = doc(db, "artifacts", appId, "public", "data", "cafe_tables", String(tableId));
+                await setDoc(tableRef, tableData);
+            } else {
+                localStorage.setItem(LOCAL_DB_KEYS.tables, JSON.stringify(liveTablesMap));
+                if (broadcastChannel) broadcastChannel.postMessage({ type: "tables_updated" });
+                renderCustomerCheckCard();
+                renderStaffDashboard();
+            }
+        }
+
+        async function pushStaffAlert(alertObj) {
+            const alertId = "ALT-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+            const fullAlert = {
+                id: alertId,
+                table: String(currentTable),
+                timestamp: Date.now(),
+                resolved: false,
+                ...alertObj
+            };
+
+            if (useFirestore && currentUser) {
+                const alertRef = doc(db, "artifacts", appId, "public", "data", "cafe_alerts", alertId);
+                await setDoc(alertRef, fullAlert);
+            } else {
+                const current = JSON.parse(localStorage.getItem(LOCAL_DB_KEYS.alerts) || "[]");
+                current.unshift(fullAlert);
+                localStorage.setItem(LOCAL_DB_KEYS.alerts, JSON.stringify(current));
+                if (broadcastChannel) broadcastChannel.postMessage({ type: "alerts_updated" });
+                loadLocalStateAndRender();
+            }
+        }
+
+        /* =====================================================================
+           7. إجراءات الزبون: نداء الويتر (بتهدئة دقيقتين)، المنيو، السلة، وتجميع الشيك الواحد
+           ===================================================================== */
+        function getWaiterCooldownKey(tableNum) {
+            return `${COOLDOWN_STORAGE_PREFIX}${String(tableNum)}`;
+        }
+
+        window.callWaiter = async function () {
+            if (!isSessionValid()) return;
+
+            const cooldownKey = getWaiterCooldownKey(currentTable);
+            const lastCallTs = Number(localStorage.getItem(cooldownKey) || sessionStorage.getItem(cooldownKey) || "0");
+            const elapsedMs = Date.now() - lastCallTs;
+
+            // منع إرسال إشعار جديد للويتر قبل مرور دقيقتين (120,000 مللي ثانية)
+            if (lastCallTs > 0 && elapsedMs < CAFE_CONFIG.waiterCooldownMs) {
+                const remainingSec = Math.ceil((CAFE_CONFIG.waiterCooldownMs - elapsedMs) / 1000);
+                const mins = Math.floor(remainingSec / 60);
+                const secs = remainingSec % 60;
+                const timeLeftText = mins > 0 ? `${mins} د و ${secs} ث` : `${secs} ثانية`;
+                showToast(`تم إرسال ندائك بالفعل 🌸 يمكنك إعادة الطلب بعد ${timeLeftText}`);
+                return;
+            }
+
+            const nowTs = Date.now();
+            localStorage.setItem(cooldownKey, String(nowTs));
+            sessionStorage.setItem(cooldownKey, String(nowTs));
+
+            const locLabel = formatLocationLabel(currentTable);
+            await pushStaffAlert({
+                type: "WAITER_CALL",
+                title: `نداء ويتر — ${locLabel}`,
+                details: "الضيف يطلب حضور الويتر للمساعدة أو الاستفسار 🔔"
+            });
+            showToast(`تم إرسال ندائك للويتر (${locLabel}) 🔔`);
+        };
+
+        window.openMenuModal = function () {
+            if (!isSessionValid()) return;
+            renderCategoryTabs();
+            renderMenuItems();
+            updateCartSummaryUI();
+            document.getElementById("menuModal").classList.remove("hidden");
+        };
+
+        window.closeMenuModal = function () {
+            const modal = document.getElementById("menuModal");
+            if (modal) modal.classList.add("hidden");
+        };
+
+        function renderCategoryTabs() {
+            const tabsEl = document.getElementById("categoryTabs");
+            if (!tabsEl) return;
+
+            tabsEl.innerHTML = MENU_DATA.map((cat) => {
+                const isActive = cat.id === activeCategoryId;
+                return `
+                    <button type="button" onclick="selectMenuCategory('${cat.id}')"
+                        class="px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
+                            isActive
+                                ? "bg-[#4e2f1d] text-white shadow-sm"
+                                : "bg-white text-[#7c533b] border border-[#f3dfc1]"
+                        }">
+                        ${cat.title}
+                    </button>
+                `;
+            }).join("");
+        }
+
+        window.selectMenuCategory = function (categoryId) {
+            activeCategoryId = categoryId;
+            renderCategoryTabs();
+            renderMenuItems();
+        };
+
+        function getMenuItemById(itemId) {
+            for (const cat of MENU_DATA) {
+                const found = cat.items.find((item) => item.id === itemId);
+                if (found) return found;
+            }
+            return null;
+        }
+
+        function renderMenuItems() {
+            const container = document.getElementById("menuItemsContainer");
+            if (!container) return;
+
+            const currentCat = MENU_DATA.find((c) => c.id === activeCategoryId) || MENU_DATA[0];
+            container.innerHTML = currentCat.items.map((item) => {
+                const qty = cart[item.id] || 0;
+                return `
+                    <div class="p-3 rounded-2xl bg-white border border-[#f3dfc1] flex items-center justify-between gap-2 shadow-2xs">
+                        <div>
+                            <div class="text-xs font-extrabold text-[#4e2f1d]">${item.name}</div>
+                            <div class="text-[11px] font-bold text-[#d96b8a] mt-0.5">${item.price} ج.م</div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            ${
+                                qty > 0
+                                    ? `
+                                        <button type="button" onclick="updateCartItemQty('${item.id}', -1)"
+                                            class="w-7 h-7 rounded-xl bg-[#fde8ee] text-[#4e2f1d] font-extrabold text-sm flex items-center justify-center active:scale-90">
+                                            -
+                                        </button>
+                                        <span class="min-w-[20px] text-center text-xs font-extrabold text-[#4e2f1d]">${qty}</span>
+                                    `
+                                    : ""
+                            }
+                            <button type="button" onclick="updateCartItemQty('${item.id}', 1)"
+                                class="px-3 h-7 rounded-xl bg-gradient-to-r from-[#d96b8a] to-[#b54868] text-white font-bold text-xs flex items-center justify-center active:scale-90">
+                                + إضافة
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        window.updateCartItemQty = function (itemId, delta) {
+            const nextQty = (cart[itemId] || 0) + delta;
+            if (nextQty <= 0) {
+                delete cart[itemId];
+            } else {
+                cart[itemId] = nextQty;
+            }
+            renderMenuItems();
+            updateCartSummaryUI();
+        };
+
+        function updateCartSummaryUI() {
+            let totalCount = 0;
+            let totalPrice = 0;
+
+            Object.entries(cart).forEach(([itemId, qty]) => {
+                const menuItem = getMenuItemById(itemId);
+                if (menuItem && qty > 0) {
+                    totalCount += qty;
+                    totalPrice += menuItem.price * qty;
+                }
+            });
+
+            const countBadge = document.getElementById("cartCountBadge");
+            const totalBadge = document.getElementById("cartTotalBadge");
+            const submitBtn = document.getElementById("submitOrderBtn");
+
+            if (countBadge) countBadge.textContent = String(totalCount);
+            if (totalBadge) totalBadge.textContent = `${totalPrice} ج.م`;
+            if (submitBtn) submitBtn.disabled = totalCount === 0;
+        }
+
+        window.submitCartOrder = async function () {
+            if (!isSessionValid()) return;
+
+            const selectedEntries = Object.entries(cart).filter(([, qty]) => qty > 0);
+            if (selectedEntries.length === 0) return;
+
+            const existingTable = liveTablesMap[currentTable] || {
+                table: String(currentTable),
+                status: "open",
+                items: [],
+                orders: [],
+                total: 0
+            };
+
+            const mergedItemsMap = {};
+            (existingTable.items || []).forEach((it) => {
+                mergedItemsMap[it.id] = { ...it };
+            });
+
+            const orderLines = [];
+            let orderSubtotal = 0;
+
+            selectedEntries.forEach(([itemId, qty]) => {
+                const menuItem = getMenuItemById(itemId);
+                if (!menuItem) return;
+
+                orderSubtotal += menuItem.price * qty;
+                orderLines.push(`${qty}× ${menuItem.name}`);
+
+                if (mergedItemsMap[itemId]) {
+                    mergedItemsMap[itemId].qty += qty;
+                } else {
+                    mergedItemsMap[itemId] = {
+                        id: menuItem.id,
+                        name: menuItem.name,
+                        price: menuItem.price,
+                        qty
+                    };
+                }
+            });
+
+            const mergedItems = Object.values(mergedItemsMap);
+            const newTotal = mergedItems.reduce((sum, it) => sum + it.price * it.qty, 0);
+
+            const seqNum = Number(localStorage.getItem(LOCAL_DB_KEYS.orderSeq) || "100") + 1;
+            localStorage.setItem(LOCAL_DB_KEYS.orderSeq, String(seqNum));
+            const orderNumber = `#FC-${seqNum}`;
+
+            const updatedOrders = [
+                ...(existingTable.orders || []),
+                {
+                    orderNumber,
+                    summary: orderLines.join("، "),
+                    subtotal: orderSubtotal,
+                    createdAt: Date.now()
+                }
+            ];
+
+            await saveTableDocument(currentTable, {
+                table: String(currentTable),
+                status: "open",
+                items: mergedItems,
+                orders: updatedOrders,
+                total: newTotal,
+                updatedAt: Date.now()
+            });
+
+            await pushStaffAlert({
+                type: "NEW_ORDER",
+                title: `أوردر جديد ${orderNumber} — ${formatLocationLabel(currentTable)}`,
+                details: `${orderLines.join("، ")} (${orderSubtotal} ج.م)`
+            });
+
+            cart = {};
+            updateCartSummaryUI();
+            renderMenuItems();
+            window.closeMenuModal();
+            showToast(`تم إرسال الأوردر ${orderNumber} وإضافته لشيك ${formatLocationLabel(currentTable)} ✨`);
+        };
+
+        function renderCustomerCheckCard() {
+            const listEl = document.getElementById("checkItemsList");
+            const totalEl = document.getElementById("checkTotalAmount");
+            const badgeEl = document.getElementById("checkStatusBadge");
+            const onlineBadgeEl = document.getElementById("onlinePayAmountBadge");
+
+            if (!listEl || !totalEl || !badgeEl) return;
+
+            const tableCheck = liveTablesMap[currentTable];
+            const items = tableCheck && tableCheck.status === "open" && Array.isArray(tableCheck.items)
+                ? tableCheck.items
+                : [];
+            const total = items.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.qty) || 0), 0);
+
+            totalEl.textContent = `${total} ج.م`;
+            if (onlineBadgeEl) onlineBadgeEl.textContent = `${total} ج.م`;
+
+            if (items.length === 0) {
+                badgeEl.textContent = "لا توجد طلبات بعد";
+                badgeEl.className = "px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#fff0f5] text-[#d96b8a] border border-[#f7c6d4]";
+                listEl.innerHTML = `
+                    <div class="py-6 text-center text-xs text-[#7c533b]/80">
+                        سلتك وشيك الطاولة فارغ حالياً 🌸<br />
+                        اضغط على <strong>«اطلب من المنيو»</strong> لبدء الطلب
+                    </div>
+                `;
+                return;
+            }
+
+            badgeEl.textContent = "شيك مفتوح ✓";
+            badgeEl.className = "px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200";
+
+            listEl.innerHTML = items.map((item) => `
+                <div class="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl bg-white border border-[#f3dfc1]/70">
+                    <span class="font-bold text-[#4e2f1d]">${item.qty}× ${item.name}</span>
+                    <span class="font-bold text-[#9e743b]">${item.price * item.qty} ج.م</span>
+                </div>
+            `).join("");
+        }
+
+        window.toggleInstaPayVodafoneCard = function () {
+            const box = document.getElementById("instaPayVodafoneBox");
+            if (box) box.classList.toggle("hidden");
+        };
+
+        window.requestPaperCheck = async function () {
+            if (!isSessionValid()) return;
+            const tableCheck = liveTablesMap[currentTable];
+            const total = tableCheck?.total || 0;
+            const locLabel = formatLocationLabel(currentTable);
+
+            await pushStaffAlert({
+                type: "CHECK_REQUEST",
+                title: `طلب الشيك 🧾 — ${locLabel}`,
+                details: total > 0 ? `إجمالي الحساب المطلوب: ${total} ج.م` : "الضيف يطلب الحساب"
+            });
+
+            showToast(`تم إبلاغ الكاشير بتجهيز الشيك لـ ${locLabel} 🧾`);
+        };
+
+        window.copyPaymentNumber = function () {
+            const numberText = CAFE_CONFIG.instapayNumber;
+            const tempInput = document.createElement("input");
+            tempInput.value = numberText;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+
+            const btn = document.getElementById("copyNumberBtn");
+            btn.innerHTML = `<span>تم النسخ</span><span>✓</span>`;
+            setTimeout(() => {
+                btn.innerHTML = `<span>نسخ الرقم</span><span>📋</span>`;
+            }, 2200);
+
+            showToast(`تم نسخ رقم التحويل: ${numberText} 📋`);
+        };
+
+        window.confirmInstaPayVodafoneTransfer = async function () {
+            if (!isSessionValid()) return;
+            const tableCheck = liveTablesMap[currentTable];
+            const total = tableCheck?.total || 0;
+            const locLabel = formatLocationLabel(currentTable);
+
+            await pushStaffAlert({
+                type: "INSTAPAY_VODAFONE",
+                title: `تحويل InstaPay / فودافون كاش 📱 — ${locLabel}`,
+                details: `الضيف يؤكد التحويل بقيمة ${total} ج.م على رقم ${CAFE_CONFIG.instapayNumber}`
+            });
+
+            showToast("تم إبلاغ الكاشير لمراجعة التحويل عبر InstaPay / فودافون كاش ✅");
+        };
+
+        /* =====================================================================
+           9. شاشة الاستاف والكاشير + تنبيه صوتي (Web Audio API)
+           ===================================================================== */
+        window.openStaffPinModal = function () {
+            if (isStaffMode) return;
+            const pinInput = document.getElementById("staffPinInput");
+            const errorMsg = document.getElementById("pinErrorMsg");
+            const pinModal = document.getElementById("staffPinModal");
+            if (pinInput) pinInput.value = "";
+            if (errorMsg) errorMsg.classList.add("hidden");
+            if (pinModal) pinModal.classList.remove("hidden");
+        };
+
+        window.closeStaffPinModal = function () {
+            const pinModal = document.getElementById("staffPinModal");
+            if (pinModal) pinModal.classList.add("hidden");
+        };
+
+        window.verifyStaffPin = function () {
+            const entered = (document.getElementById("staffPinInput")?.value || "").trim();
+            if (entered === CAFE_CONFIG.staffPin) {
+                window.closeStaffPinModal();
+                isStaffMode = true;
+                document.getElementById("customerView")?.classList.add("hidden");
+                document.getElementById("expiredLockView")?.classList.add("hidden");
+                document.getElementById("staffView")?.classList.remove("hidden");
+                window.playDingSound();
+                renderStaffDashboard();
+                renderTodayConfirmedOrders();
+            } else {
+                document.getElementById("pinErrorMsg")?.classList.remove("hidden");
+            }
+        };
+
+        window.exitStaffView = function () {
+            isStaffMode = false;
+            document.getElementById("staffView")?.classList.add("hidden");
+            if (isSessionValid()) {
+                document.getElementById("customerView")?.classList.remove("hidden");
+            } else {
+                document.getElementById("expiredLockView")?.classList.remove("hidden");
+            }
+        };
+
+        function renderStaffDashboard() {
+            const alertsContainer = document.getElementById("staffAlertsList");
+            const activeAlerts = liveAlertsList.filter((a) => !a.resolved);
+            document.getElementById("activeAlertsCount").textContent = activeAlerts.length;
+
+            if (activeAlerts.length === 0) {
+                alertsContainer.innerHTML = `<div class="py-5 text-center text-xs text-[#7c533b]/80">لا توجد تنبيهات نشطة حالياً 🌸</div>`;
+            } else {
+                alertsContainer.innerHTML = activeAlerts.map((alert) => {
+                    const timeStr = new Date(alert.timestamp).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+                    const badgeColor =
+                        alert.type === "NEW_ORDER"
+                            ? "bg-rose-100 text-rose-800 border-rose-200"
+                            : alert.type === "INSTAPAY_VODAFONE"
+                            ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                            : "bg-amber-100 text-amber-800 border-amber-200";
+
+                    return `
+                        <div class="p-3 rounded-2xl bg-white border border-[#f3dfc1] alert-pulse flex items-start justify-between gap-2.5">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${badgeColor}">
+                                        ${formatLocationLabel(alert.table)}
+                                    </span>
+                                    <span class="text-xs font-extrabold text-[#4e2f1d]">${alert.title}</span>
+                                </div>
+                                <p class="text-[11px] text-[#7c533b] leading-relaxed">${alert.details}</p>
+                                <span class="text-[10px] text-[#9e743b] font-semibold block">⏰ ${timeStr}</span>
+                            </div>
+                            <button type="button" onclick="resolveStaffAlert('${alert.id}')"
+                                class="px-3 py-2 rounded-xl bg-emerald-600 text-white text-[11px] font-bold shrink-0 active:scale-95">
+                                تم الاستلام ✓
+                            </button>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            // عرض الطاولات والبار المفتوحة
+            const openTablesContainer = document.getElementById("openTablesList") || document.getElementById("staffOpenTablesList");
+            const openTables = Object.values(liveTablesMap).filter((t) => t && isValidLocationId(t.table) && t.status === "open" && t.items && t.items.length > 0);
+            document.getElementById("openTablesCount").textContent = `${openTables.length} مكان مفتوح`;
+
+            if (openTables.length === 0) {
+                openTablesContainer.innerHTML = `<div class="py-5 text-center text-xs text-[#7c533b]/80">جميع الطاولات والبار مغلقة ومتاحة حالياً ✨</div>`;
+            } else {
+                openTablesContainer.innerHTML = openTables.map((t) => {
+                    const locLabel = formatLocationLabel(t.table);
+                    return `
+                    <div class="p-3.5 rounded-2xl bg-[#fff9fb] border border-[#c59b5f]/45 space-y-2.5">
+                        <div class="flex items-center justify-between border-b border-[#f3dfc1] pb-2">
+                            <span class="px-3 py-1 rounded-full bg-[#4e2f1d] text-white text-xs font-extrabold">${locLabel}</span>
+                            <span class="text-sm font-extrabold text-[#d96b8a]">الإجمالي: ${t.total} ج.م</span>
+                        </div>
+                        <div class="space-y-1">
+                            ${t.items.map((item) => `
+                                <div class="flex justify-between text-xs text-[#4e2f1d]">
+                                    <span><strong>${item.qty}×</strong> ${item.name}</span>
+                                    <span class="text-[#7c533b] font-semibold">${item.price * item.qty} ج.م</span>
+                                </div>
+                            `).join("")}
+                        </div>
+                        <button type="button" onclick="closeAndSettleTable('${t.table}')"
+                            class="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#c59b5f] to-[#9e743b] text-white text-xs font-extrabold shadow active:scale-95">
+                            تحصيل وإغلاق شيك ${locLabel} ✅
+                        </button>
+                    </div>
+                `;
+                }).join("");
+            }
+        }
+
+        window.resolveStaffAlert = async function (alertId) {
+            if (useFirestore && currentUser) {
+                const target = liveAlertsList.find((a) => a.id === alertId);
+                if (target) {
+                    const alertRef = doc(db, "artifacts", appId, "public", "data", "cafe_alerts", alertId);
+                    await setDoc(alertRef, { ...target, resolved: true });
+                }
+            } else {
+                const current = JSON.parse(localStorage.getItem(LOCAL_DB_KEYS.alerts) || "[]");
+                const updated = current.map((a) => (a.id === alertId ? { ...a, resolved: true } : a));
+                localStorage.setItem(LOCAL_DB_KEYS.alerts, JSON.stringify(updated));
+                if (broadcastChannel) broadcastChannel.postMessage({ type: "alerts_updated" });
+                loadLocalStateAndRender();
+            }
+        };
+
+        window.closeAndSettleTable = async function (tableNum) {
+            const tableCheck = liveTablesMap[tableNum];
+            const settledTotal = tableCheck?.total || 0;
+            const settledItems = Array.isArray(tableCheck?.items) ? [...tableCheck.items] : [];
+            const settledOrders = Array.isArray(tableCheck?.orders) ? [...tableCheck.orders] : [];
+            const locLabel = formatLocationLabel(tableNum);
+
+            // تحديد طريقة الدفع بناءً على آخر إشعار تحويل نشط للطاولة أو البار إن وُجد
+            const hasOnlineClaim = liveAlertsList.some(
+                (a) => String(a.table) === String(tableNum) && a.type === "INSTAPAY_VODAFONE" && !a.resolved
+            );
+            const paymentMethod = hasOnlineClaim ? "InstaPay / فودافون كاش" : "كاش / شيك";
+
+            // حفظ الشيك المؤكد في سجل أوردرات اليوم مع وقت التأكيد الدقيق
+            if (settledTotal > 0 || settledItems.length > 0) {
+                const confirmedAt = Date.now();
+                const confirmedTimeStr = new Date(confirmedAt).toLocaleTimeString("ar-EG", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit"
+                });
+                const summaryText =
+                    settledItems.length > 0
+                        ? settledItems.map((i) => `${i.qty}× ${i.name}`).join("، ")
+                        : settledOrders.map((o) => o.summary).join(" • ") || "شيك مؤكد";
+
+                const dailyRecord = {
+                    id: "CHK-" + confirmedAt + "-" + tableNum,
+                    table: String(tableNum),
+                    total: settledTotal,
+                    itemsSummary: summaryText,
+                    paymentMethod,
+                    confirmedAt,
+                    confirmedTimeStr
+                };
+
+                await saveConfirmedDailyOrder(dailyRecord);
+            }
+
+            await saveTableDocument(tableNum, {
+                table: String(tableNum),
+                status: "closed",
+                items: [],
+                orders: [],
+                total: 0,
+                closedAt: Date.now()
+            });
+            showToast(`تم تأكيد وإغلاق شيك ${locLabel} وحفظه في سجل اليوم ✅`);
+        };
+
+        async function saveConfirmedDailyOrder(record) {
+            if (useFirestore && currentUser) {
+                const dailyRef = doc(db, "artifacts", appId, "public", "data", "cafe_daily_orders", record.id);
+                await setDoc(dailyRef, { ...record, cleared: false });
+            } else {
+                const current = JSON.parse(localStorage.getItem(LOCAL_DB_KEYS.dailyOrders) || "[]");
+                current.unshift(record);
+                localStorage.setItem(LOCAL_DB_KEYS.dailyOrders, JSON.stringify(current));
+                if (broadcastChannel) broadcastChannel.postMessage({ type: "daily_orders_updated" });
+                loadLocalStateAndRender();
+            }
+        }
+
+        function renderTodayConfirmedOrders() {
+            const listEl = document.getElementById("todayConfirmedOrdersList");
+            const summaryEl = document.getElementById("dailySummaryText");
+            if (!listEl || !summaryEl) return;
+
+            const totalRevenue = todayConfirmedOrders.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
+            summaryEl.textContent = `إجمالي اليوم: ${totalRevenue} ج.م • ${todayConfirmedOrders.length} شيك مؤكد`;
+
+            if (todayConfirmedOrders.length === 0) {
+                listEl.innerHTML = `<div class="py-5 text-center text-xs text-[#7c533b]/80">لم يتم تأكيد شيكات اليوم بعد 🌸</div>`;
+                return;
+            }
+
+            listEl.innerHTML = todayConfirmedOrders.map((rec) => `
+                <div class="p-3 rounded-2xl bg-white border border-[#f3dfc1] flex items-start justify-between gap-2">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="px-2 py-0.5 rounded-full bg-[#fde8ee] text-[#4e2f1d] text-[10px] font-extrabold">
+                                ${formatLocationLabel(rec.table)}
+                            </span>
+                            <span class="px-2 py-0.5 rounded-full bg-[#fffaf0] border border-[#c59b5f]/40 text-[#9e743b] text-[10px] font-bold">
+                                ${rec.paymentMethod || "شيك مؤكد"}
+                            </span>
+                            <span class="text-[10px] text-[#7c533b] font-semibold">
+                                🕒 تأكيد: ${rec.confirmedTimeStr}
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-[#4e2f1d] leading-relaxed">${rec.itemsSummary}</p>
+                    </div>
+                    <span class="text-xs font-extrabold text-emerald-700 shrink-0">${rec.total} ج.م</span>
+                </div>
+            `).join("");
+        }
+
+        window.clearTodayConfirmedOrders = async function () {
+            const btn = document.getElementById("clearDailyLogBtn");
+            if (!clearDailyConfirmPending) {
+                clearDailyConfirmPending = true;
+                btn.textContent = "اضغط مرة أخرى للتأكيد";
+                clearDailyConfirmTimeout = setTimeout(() => {
+                    clearDailyConfirmPending = false;
+                    btn.textContent = "تصفير سجل اليوم";
+                }, 3500);
+                return;
+            }
+
+            clearTimeout(clearDailyConfirmTimeout);
+            clearDailyConfirmPending = false;
+            btn.textContent = "تصفير سجل اليوم";
+
+            if (useFirestore && currentUser) {
+                for (const item of todayConfirmedOrders) {
+                    const dailyRef = doc(db, "artifacts", appId, "public", "data", "cafe_daily_orders", item.id);
+                    await setDoc(dailyRef, { ...item, cleared: true });
+                }
+            } else {
+                localStorage.removeItem(LOCAL_DB_KEYS.dailyOrders);
+                if (broadcastChannel) broadcastChannel.postMessage({ type: "daily_orders_updated" });
+                loadLocalStateAndRender();
+            }
+            showToast("تم تصفير سجل أوردرات اليوم بنجاح ✨");
+        };
+
+        // صوت تنبيه لطيف (Ding) باستخدام Web Audio API بدون ملفات خارجية
+        window.playDingSound = function () {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(880, ctx.currentTime); // نغمة A5 صافية
+                osc.frequency.exponentialRampToValueAtTime(1318.5, ctx.currentTime + 0.15); // E6
+
+                gain.gain.setValueAtTime(0.25, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start();
+                osc.stop(ctx.currentTime + 0.65);
+            } catch (e) {
+                // تجاهل قيود التشغيل التلقائي للصوت قبل تفاعل المستخدم
+            }
+        };
+
+        // إشعار عائم سريع
+        let toastTimer = null;
+        function showToast(msg) {
+            const banner = document.getElementById("toastBanner");
+            document.getElementById("toastMessage").textContent = msg;
+            banner.classList.remove("hidden");
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                banner.classList.add("hidden");
+            }, 3200);
+        }
+    </script>
+</body>
+</html>
